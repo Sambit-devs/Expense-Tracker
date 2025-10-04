@@ -1,5 +1,6 @@
 // frontend/src/ExpenseTrackerApp.jsx
 import React, { useEffect, useState } from 'react';
+import './App.css';
 
 const API_BASE = 'http://localhost:4000/api';
 
@@ -188,13 +189,13 @@ export default function ExpenseTrackerApp() {
       {/* Add Expense Form */}
       <div className="expense-form">
         <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" type="number" />
-        <select value={newCurrency} onChange={e => setNewCurrency(e.target.value)} style={{ fontSize: '0.8em', padding: '0.75rem 0.5rem', width: 'auto' }}>
+        <select value={newCurrency} onChange={e => setNewCurrency(e.target.value)}>
           {currencies.map(c => (<option key={c.code} value={c.symbol}>{c.symbol} ({c.code})</option>))}
         </select>
         <select value={newCategory} onChange={e => {
             setNewCategory(e.target.value);
             if (e.target.value !== 'Other') setCustomNewCategory('');
-          }} style={{ fontSize: '0.8em', padding: '0.75rem 0.5rem', width: 'auto' }}>
+          }}>
           {categories.map(c => (<option key={c} value={c}>{c}</option>))}
         </select>
         {newCategory === 'Other' && (
@@ -202,7 +203,6 @@ export default function ExpenseTrackerApp() {
             value={customNewCategory}
             onChange={e => setCustomNewCategory(e.target.value)}
             placeholder="Custom Category"
-            style={{ flex: 1, padding: '0.75rem', border: '1px solid #ccc', borderRadius: '5px' }}
           />
         )}
         <input value={date} onChange={e => setDate(e.target.value)} type="date" />
@@ -211,7 +211,7 @@ export default function ExpenseTrackerApp() {
       </div>
 
       {/* Filters */}
-      <div style={{ marginBottom: '20px', textAlign: 'center', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+      <div className="filters-container">
         <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
           <option value="">All Categories</option>
           {categories.map(c => (<option key={c} value={c}>{c}</option>))}
@@ -231,7 +231,7 @@ export default function ExpenseTrackerApp() {
 
       {/* Summary Reports Section (Conditionally Rendered) */}
       {showSummary && (
-        <div style={{ padding: '20px', border: '1px solid #eee', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#f9f9f9' }}>
+        <div className="summary-reports">
           <h2>Summary Reports</h2>
           <div style={{ marginBottom: '15px' }}>
             <label htmlFor="summary-month-filter">Select Month:</label>
@@ -274,20 +274,27 @@ export default function ExpenseTrackerApp() {
       )}
 
       {loading ? <p>Loading...</p> :
-        <ul className="expense-list">
+        <div className="expense-table">
+          <div className="expense-header">
+            <div>Date</div>
+            <div>Amount</div>
+            <div>Category</div>
+            <div>Note</div>
+            <div>Actions</div>
+          </div>
           {expenses.map(e => (
-            <li key={e._id}>
+            <div className="expense-row" key={e._id}>
               {editingId === e._id ? (
-                <>
-                  <div className="edit-form-group">
+                <div className="edit-panel">
+                  <div className="edit-panel-inputs">
                     <input value={editAmount} onChange={ev => setEditAmount(ev.target.value)} placeholder="Amount" type="number" />
-                    <select value={editCurrency} onChange={ev => setEditCurrency(ev.target.value)} style={{ fontSize: '0.8em', padding: '0.5rem', width: 'auto' }}>
+                    <select value={editCurrency} onChange={ev => setEditCurrency(ev.target.value)}>
                       {currencies.map(c => (<option key={c.code} value={c.symbol}>{c.symbol} ({c.code})</option>))}
                     </select>
                     <select value={editCategory} onChange={ev => {
                         setEditCategory(ev.target.value);
                         if (ev.target.value !== 'Other') setCustomEditCategory('');
-                      }} style={{ fontSize: '0.8em', padding: '0.5rem', width: 'auto' }}>
+                      }}>
                       {categories.map(c => (<option key={c} value={c}>{c}</option>))}
                     </select>
                     {editCategory === 'Other' && (
@@ -295,37 +302,31 @@ export default function ExpenseTrackerApp() {
                         value={customEditCategory}
                         onChange={ev => setCustomEditCategory(ev.target.value)}
                         placeholder="Custom Category"
-                        style={{ flex: 1, padding: '0.75rem', border: '1px solid #ccc', borderRadius: '5px' }}
                       />
                     )}
                     <input value={editDate} onChange={ev => setEditDate(ev.target.value)} type="date" />
                     <input value={editNote} onChange={ev => setEditNote(ev.target.value)} placeholder="Note" />
                   </div>
-                  <div className="expense-actions">
+                  <div className="edit-panel-actions">
                     <button className="btn-save" onClick={handleUpdate}>Save</button>
                     <button className="btn-cancel" onClick={cancelEdit}>Cancel</button>
                   </div>
-                </>
+                </div>
               ) : (
                 <>
-                  <div className="expense-details">
-                    <span>{new Date(e.date).toLocaleDateString()}</span>
-                    <span>-</span>
-                    <span>{e.currency}{e.amount}</span>
-                    <span>-</span>
-                    <span>{e.category}</span>
-                    <span>-</span>
-                    <span>{e.note}</span>
-                  </div>
-                  <div className="expense-actions">
+                  <div className="expense-cell">{new Date(e.date).toLocaleDateString()}</div>
+                  <div className="expense-cell">{e.currency}{e.amount}</div>
+                  <div className="expense-cell">{e.category}</div>
+                  <div className="expense-cell">{e.note}</div>
+                  <div className="expense-cell">
                     <button className="btn-edit" onClick={() => startEdit(e)}>Edit</button>
                     <button className="btn-delete" onClick={() => handleDelete(e._id)}>Delete</button>
                   </div>
                 </>
               )}
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       }
     </div>
   );
