@@ -30,12 +30,13 @@ app.post('/api/expenses',
   body('date').isISO8601().withMessage('Date must be valid ISO date'),
   body('note').optional().isString().isLength({ max: 500 }).withMessage('Note too long'),
   body('currency').optional().isString().isLength({ max: 10 }).withMessage('Currency too long'),
+  body('category').optional().isString().withMessage('Category must be a string'),
   async (req, res) => {
     const v = formatValidation(req);
     if (!v.ok) return res.status(400).json({ error: 'validation', details: v.errors });
     try {
-      const { amount, date, note, currency } = req.body;
-      const expense = new Expense({ amount, date: new Date(date), note, currency });
+      const { amount, date, note, currency, category } = req.body;
+      const expense = new Expense({ amount, date: new Date(date), note, currency, category });
       await expense.save();
       return res.status(201).json(expense);
     } catch (err) {
@@ -46,7 +47,14 @@ app.post('/api/expenses',
 
 app.get('/api/expenses', async (req, res) => {
   try {
-    const docs = await Expense.find({}).sort({ date: -1 }).limit(100);
+    const { category, startDate, endDate } = req.query;
+    const filter = {};
+    if (category) filter.category = category;
+    if (startDate && endDate) filter.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    else if (startDate) filter.date = { $gte: new Date(startDate) };
+    else if (endDate) filter.date = { $lte: new Date(endDate) };
+
+    const docs = await Expense.find(filter).sort({ date: -1 }).limit(100);
     return res.json(docs);
   } catch (err) {
     return res.status(500).json({ error: 'server_error' });
@@ -58,6 +66,7 @@ app.put('/api/expenses/:id',
   body('amount').optional().isFloat({ gt: 0 }).withMessage('Amount must be positive'),
   body('date').optional().isISO8601().withMessage('Date must be valid ISO date'),
   body('currency').optional().isString().isLength({ max: 10 }).withMessage('Currency too long'),
+  body('category').optional().isString().withMessage('Category must be a string'),
   async (req, res) => {
     const v = formatValidation(req);
     if (!v.ok) return res.status(400).json({ error: 'validation', details: v.errors });

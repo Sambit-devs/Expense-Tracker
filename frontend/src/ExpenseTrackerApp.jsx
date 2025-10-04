@@ -22,6 +22,32 @@ const currencies = [
   { symbol: '₽', code: 'RUB', name: 'Russian Ruble' }
 ];
 
+const categories = ['Food', 'Travel', 'Bills', 'Shopping', 'Entertainment', 'Other'];
+
+// Hardcoded exchange rates for summary calculation
+const EXCHANGE_RATES = {
+  '₹': 1,
+  '$': 83.1,
+  '€': 88.5,
+  '£': 102.5,
+  '¥': 0.56,
+  'A$': 53.6,
+  'C$': 60.1,
+  'CHF': 91.5,
+  'HK$': 10.6,
+  'NZ$': 49.3,
+  'S$': 61.2,
+  'kr': 7.6,
+  'R': 4.4,
+  'R$': 16.9,
+  '₽': 0.9
+};
+
+const convertToINR = (amount, currency) => {
+  const rate = EXCHANGE_RATES[currency] || 1;
+  return amount * rate;
+};
+
 export default function ExpenseTrackerApp() {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -30,32 +56,77 @@ export default function ExpenseTrackerApp() {
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [newCurrency, setNewCurrency] = useState('₹');
+  const [newCategory, setNewCategory] = useState('Other');
+  const [customNewCategory, setCustomNewCategory] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editAmount, setEditAmount] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editCurrency, setEditCurrency] = useState('₹');
+  const [editCategory, setEditCategory] = useState('Other');
+  const [customEditCategory, setCustomEditCategory] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [summary, setSummary] = useState({
+    total: 0,
+    byCategory: {},
+    byMonth: {}
+  });
 
   const loadExpenses = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/expenses`);
+      const query = new URLSearchParams();
+      if (filterCategory) query.append('category', filterCategory);
+      if (filterStartDate) query.append('startDate', filterStartDate);
+      if (filterEndDate) query.append('endDate', filterEndDate);
+
+      const res = await fetch(`${API_BASE}/expenses?${query.toString()}`);
       const data = await res.json();
       setExpenses(data);
     } catch (err) { setError('Failed to load'); }
     setLoading(false);
   };
 
-  useEffect(() => { loadExpenses(); }, []);
+  const calculateSummary = () => {
+    let total = 0;
+    const byCategory = {};
+    const byMonth = {};
+
+    expenses.forEach(exp => {
+      const amountInINR = convertToINR(exp.amount, exp.currency);
+      total += amountInINR;
+
+      // Group by category
+      const category = exp.category || 'Other';
+      byCategory[category] = (byCategory[category] || 0) + amountInINR;
+
+      // Group by month
+      const month = new Date(exp.date).toLocaleDateString('default', { month: 'long', year: 'numeric' });
+      byMonth[month] = (byMonth[month] || 0) + amountInINR;
+    });
+
+    setSummary({
+      total,
+      byCategory,
+      byMonth
+    });
+  };
+
+  useEffect(() => { loadExpenses(); }, [filterCategory, filterStartDate, filterEndDate]);
+  useEffect(() => { calculateSummary(); }, [expenses]);
 
   const handleAdd = async () => {
-    if (!amount || !date) return alert('Fill in fields');
+    const categoryToSave = newCategory === 'Other' ? customNewCategory : newCategory;
+    if (!amount || !date || !categoryToSave) return alert('Fill in all required fields');
+
     await fetch(`${API_BASE}/expenses`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, date, note, currency: newCurrency })
+      body: JSON.stringify({ amount, date, note, currency: newCurrency, category: categoryToSave })
     });
-    setAmount(''); setDate(''); setNote('');
+    setAmount(''); setDate(''); setNote(''); setNewCategory('Other'); setCustomNewCategory('');
     loadExpenses();
   };
 
@@ -65,17 +136,15 @@ export default function ExpenseTrackerApp() {
   };
 
   const handleUpdate = async () => {
-    if (!editAmount || !editDate) return alert('Fill in all fields');
+    const categoryToSave = editCategory === 'Other' ? customEditCategory : editCategory;
+    if (!editAmount || !editDate || !categoryToSave) return alert('Fill in all required fields');
+
     await fetch(`${API_BASE}/expenses/${editingId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: editAmount, date: editDate, note: editNote, currency: editCurrency })
+      body: JSON.stringify({ amount: editAmount, date: editDate, note: editNote, currency: editCurrency, category: categoryToSave })
     });
-    setEditingId(null);
-    setEditAmount('');
-    setEditDate('');
-    setEditNote('');
-    setEditCurrency('₹');
+    setEditingId(null); setEditAmount(''); setEditDate(''); setEditNote(''); setEditCurrency('₹'); setEditCategory('Other'); setCustomEditCategory('');
     loadExpenses();
   };
 
@@ -85,14 +154,18 @@ export default function ExpenseTrackerApp() {
     setEditDate(new Date(expense.date).toISOString().split('T')[0]);
     setEditNote(expense.note);
     setEditCurrency(expense.currency);
+
+    if (categories.includes(expense.category)) {
+      setEditCategory(expense.category);
+      setCustomEditCategory('');
+    } else {
+      setEditCategory('Other');
+      setCustomEditCategory(expense.category);
+    }
   };
 
   const cancelEdit = () => {
-    setEditingId(null);
-    setEditAmount('');
-    setEditDate('');
-    setEditNote('');
-    setEditCurrency('₹');
+    setEditingId(null); setEditAmount(''); setEditDate(''); setEditNote(''); setEditCurrency('₹'); setEditCategory('Other'); setCustomEditCategory('');
   };
 
   return (
@@ -100,37 +173,71 @@ export default function ExpenseTrackerApp() {
       <h1>Expense Tracker</h1>
       {error && <p>{error}</p>}
 
+      {/* Add Expense Form */}
       <div className="expense-form">
-        <input
-          value={amount}
-          onChange={e => setAmount(e.target.value)}
-          placeholder="Amount"
-          type="number"
-        />
-        <select
-          value={newCurrency}
-          onChange={e => setNewCurrency(e.target.value)}
-          style={{ fontSize: '0.8em', padding: '0.75rem 0.5rem', width: 'auto' }}
-        >
-          {currencies.map(c => (
-            <option key={c.code} value={c.symbol}>
-              {c.symbol} ({c.code})
-            </option>
-          ))}
+        <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" type="number" />
+        <select value={newCurrency} onChange={e => setNewCurrency(e.target.value)} style={{ fontSize: '0.8em', padding: '0.75rem 0.5rem', width: 'auto' }}>
+          {currencies.map(c => (<option key={c.code} value={c.symbol}>{c.symbol} ({c.code})</option>))}
         </select>
-        <input
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          type="date"
-        />
-        <input
-          value={note}
-          onChange={e => setNote(e.target.value)}
-          placeholder="Note"
-        />
+        <select value={newCategory} onChange={e => {
+            setNewCategory(e.target.value);
+            if (e.target.value !== 'Other') setCustomNewCategory('');
+          }} style={{ fontSize: '0.8em', padding: '0.75rem 0.5rem', width: 'auto' }}>
+          {categories.map(c => (<option key={c} value={c}>{c}</option>))}
+        </select>
+        {newCategory === 'Other' && (
+          <input
+            value={customNewCategory}
+            onChange={e => setCustomNewCategory(e.target.value)}
+            placeholder="Custom Category"
+            style={{ flex: 1, padding: '0.75rem', border: '1px solid #ccc', borderRadius: '5px' }}
+          />
+        )}
+        <input value={date} onChange={e => setDate(e.target.value)} type="date" />
+        <input value={note} onChange={e => setNote(e.target.value)} placeholder="Note" />
         <button onClick={handleAdd}>Add</button>
       </div>
-      
+
+      {/* Filters */}
+      <div style={{ marginBottom: '20px', textAlign: 'center', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+          <option value="">All Categories</option>
+          {categories.map(c => (<option key={c} value={c}>{c}</option>))}
+        </select>
+        <span>After</span>
+        <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
+        <span>Before</span>
+        <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
+      </div>
+
+      {/* Summary Reports */}
+      <div style={{ padding: '20px', border: '1px solid #eee', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#f9f9f9' }}>
+        <h2>Summary Reports</h2>
+        <div>
+          <strong>Total Spent:</strong> ₹{summary.total.toFixed(2)}
+        </div>
+        <div style={{ marginTop: '15px' }}>
+          <strong>Total by Category:</strong>
+          <ul style={{ listStyleType: 'none', padding: 0 }}>
+            {Object.entries(summary.byCategory).map(([cat, total]) => (
+              <li key={cat}>
+                {cat}: ₹{total.toFixed(2)}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div style={{ marginTop: '15px' }}>
+          <strong>Total by Month:</strong>
+          <ul style={{ listStyleType: 'none', padding: 0 }}>
+            {Object.entries(summary.byMonth).map(([month, total]) => (
+              <li key={month}>
+                {month}: ₹{total.toFixed(2)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
       {loading ? <p>Loading...</p> :
         <ul className="expense-list">
           {expenses.map(e => (
@@ -139,17 +246,23 @@ export default function ExpenseTrackerApp() {
                 <>
                   <div className="edit-form-group">
                     <input value={editAmount} onChange={ev => setEditAmount(ev.target.value)} placeholder="Amount" type="number" />
-                    <select
-                      value={editCurrency}
-                      onChange={ev => setEditCurrency(ev.target.value)}
-                      style={{ fontSize: '0.8em', padding: '0.5rem', width: 'auto' }}
-                    >
-                      {currencies.map(c => (
-                        <option key={c.code} value={c.symbol}>
-                          {c.symbol} ({c.code})
-                        </option>
-                      ))}
+                    <select value={editCurrency} onChange={ev => setEditCurrency(ev.target.value)} style={{ fontSize: '0.8em', padding: '0.5rem', width: 'auto' }}>
+                      {currencies.map(c => (<option key={c.code} value={c.symbol}>{c.symbol} ({c.code})</option>))}
                     </select>
+                    <select value={editCategory} onChange={ev => {
+                        setEditCategory(ev.target.value);
+                        if (ev.target.value !== 'Other') setCustomEditCategory('');
+                      }} style={{ fontSize: '0.8em', padding: '0.5rem', width: 'auto' }}>
+                      {categories.map(c => (<option key={c} value={c}>{c}</option>))}
+                    </select>
+                    {editCategory === 'Other' && (
+                      <input
+                        value={customEditCategory}
+                        onChange={ev => setCustomEditCategory(ev.target.value)}
+                        placeholder="Custom Category"
+                        style={{ flex: 1, padding: '0.75rem', border: '1px solid #ccc', borderRadius: '5px' }}
+                      />
+                    )}
                     <input value={editDate} onChange={ev => setEditDate(ev.target.value)} type="date" />
                     <input value={editNote} onChange={ev => setEditNote(ev.target.value)} placeholder="Note" />
                   </div>
@@ -164,6 +277,8 @@ export default function ExpenseTrackerApp() {
                     <span>{new Date(e.date).toLocaleDateString()}</span>
                     <span>-</span>
                     <span>{e.currency}{e.amount}</span>
+                    <span>-</span>
+                    <span>{e.category}</span>
                     <span>-</span>
                     <span>{e.note}</span>
                   </div>
