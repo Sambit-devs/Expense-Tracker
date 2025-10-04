@@ -3,6 +3,25 @@ import React, { useEffect, useState } from 'react';
 
 const API_BASE = 'http://localhost:4000/api';
 
+const currencies = [
+  { symbol: '₹', code: 'INR', name: 'Indian Rupee' },
+  { symbol: '$', code: 'USD', name: 'US Dollar' },
+  { symbol: '€', code: 'EUR', name: 'Euro' },
+  { symbol: '£', code: 'GBP', name: 'British Pound' },
+  { symbol: '¥', code: 'JPY', name: 'Japanese Yen' },
+  { symbol: 'A$', code: 'AUD', name: 'Australian Dollar' },
+  { symbol: 'C$', code: 'CAD', name: 'Canadian Dollar' },
+  { symbol: 'CHF', code: 'CHF', name: 'Swiss Franc' },
+  { symbol: '¥', code: 'CNY', name: 'Chinese Yuan' },
+  { symbol: 'HK$', code: 'HKD', name: 'Hong Kong Dollar' },
+  { symbol: 'NZ$', code: 'NZD', name: 'New Zealand Dollar' },
+  { symbol: 'S$', code: 'SGD', name: 'Singapore Dollar' },
+  { symbol: 'kr', code: 'SEK', name: 'Swedish Krona' },
+  { symbol: 'R', code: 'ZAR', name: 'South African Rand' },
+  { symbol: 'R$', code: 'BRL', name: 'Brazilian Real' },
+  { symbol: '₽', code: 'RUB', name: 'Russian Ruble' }
+];
+
 export default function ExpenseTrackerApp() {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -10,11 +29,12 @@ export default function ExpenseTrackerApp() {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
+  const [newCurrency, setNewCurrency] = useState('₹');
   const [editingId, setEditingId] = useState(null);
   const [editAmount, setEditAmount] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editNote, setEditNote] = useState('');
-  const [currency, setCurrency] = useState('₹'); // Default currency is now Indian Rupee
+  const [editCurrency, setEditCurrency] = useState('₹');
 
   const loadExpenses = async () => {
     setLoading(true);
@@ -33,7 +53,7 @@ export default function ExpenseTrackerApp() {
     await fetch(`${API_BASE}/expenses`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, date, note })
+      body: JSON.stringify({ amount, date, note, currency: newCurrency })
     });
     setAmount(''); setDate(''); setNote('');
     loadExpenses();
@@ -49,12 +69,13 @@ export default function ExpenseTrackerApp() {
     await fetch(`${API_BASE}/expenses/${editingId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: editAmount, date: editDate, note: editNote })
+      body: JSON.stringify({ amount: editAmount, date: editDate, note: editNote, currency: editCurrency })
     });
     setEditingId(null);
     setEditAmount('');
     setEditDate('');
     setEditNote('');
+    setEditCurrency('₹');
     loadExpenses();
   };
 
@@ -63,6 +84,7 @@ export default function ExpenseTrackerApp() {
     setEditAmount(expense.amount);
     setEditDate(new Date(expense.date).toISOString().split('T')[0]);
     setEditNote(expense.note);
+    setEditCurrency(expense.currency);
   };
 
   const cancelEdit = () => {
@@ -70,43 +92,45 @@ export default function ExpenseTrackerApp() {
     setEditAmount('');
     setEditDate('');
     setEditNote('');
+    setEditCurrency('₹');
   };
 
   return (
     <div className="container">
       <h1>Expense Tracker</h1>
       {error && <p>{error}</p>}
+
       <div className="expense-form">
-        <input 
-          value={amount} 
-          onChange={e => setAmount(e.target.value)} 
-          placeholder="Amount" 
-          type="number" 
+        <input
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          placeholder="Amount"
+          type="number"
         />
-        <input 
-          value={date} 
-          onChange={e => setDate(e.target.value)} 
-          type="date" 
+        <select
+          value={newCurrency}
+          onChange={e => setNewCurrency(e.target.value)}
+          style={{ fontSize: '0.8em', padding: '0.75rem 0.5rem', width: 'auto' }}
+        >
+          {currencies.map(c => (
+            <option key={c.code} value={c.symbol}>
+              {c.symbol} ({c.code})
+            </option>
+          ))}
+        </select>
+        <input
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          type="date"
         />
-        <input 
-          value={note} 
-          onChange={e => setNote(e.target.value)} 
-          placeholder="Note" 
+        <input
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder="Note"
         />
         <button onClick={handleAdd}>Add</button>
       </div>
-
-      <div style={{ marginBottom: '20px', textAlign: 'center', fontSize: '0.8em' }}> {/* Added inline style for smaller size */}
-        <label htmlFor="currency-select">Select Currency: </label>
-        <select id="currency-select" value={currency} onChange={e => setCurrency(e.target.value)}>
-          <option value="₹">INR (₹)</option>
-          <option value="$">USD ($)</option>
-          <option value="€">EUR (€)</option>
-          <option value="£">GBP (£)</option>
-          <option value="¥">JPY (¥)</option>
-        </select>
-      </div>
-
+      
       {loading ? <p>Loading...</p> :
         <ul className="expense-list">
           {expenses.map(e => (
@@ -115,6 +139,17 @@ export default function ExpenseTrackerApp() {
                 <>
                   <div className="edit-form-group">
                     <input value={editAmount} onChange={ev => setEditAmount(ev.target.value)} placeholder="Amount" type="number" />
+                    <select
+                      value={editCurrency}
+                      onChange={ev => setEditCurrency(ev.target.value)}
+                      style={{ fontSize: '0.8em', padding: '0.5rem', width: 'auto' }}
+                    >
+                      {currencies.map(c => (
+                        <option key={c.code} value={c.symbol}>
+                          {c.symbol} ({c.code})
+                        </option>
+                      ))}
+                    </select>
                     <input value={editDate} onChange={ev => setEditDate(ev.target.value)} type="date" />
                     <input value={editNote} onChange={ev => setEditNote(ev.target.value)} placeholder="Note" />
                   </div>
@@ -128,7 +163,7 @@ export default function ExpenseTrackerApp() {
                   <div className="expense-details">
                     <span>{new Date(e.date).toLocaleDateString()}</span>
                     <span>-</span>
-                    <span>{currency}{e.amount}</span>
+                    <span>{e.currency}{e.amount}</span>
                     <span>-</span>
                     <span>{e.note}</span>
                   </div>

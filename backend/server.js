@@ -29,12 +29,13 @@ app.post('/api/expenses',
   body('amount').isFloat({ gt: 0 }).withMessage('Amount must be positive'),
   body('date').isISO8601().withMessage('Date must be valid ISO date'),
   body('note').optional().isString().isLength({ max: 500 }).withMessage('Note too long'),
+  body('currency').optional().isString().isLength({ max: 10 }).withMessage('Currency too long'),
   async (req, res) => {
     const v = formatValidation(req);
     if (!v.ok) return res.status(400).json({ error: 'validation', details: v.errors });
     try {
-      const { amount, date, note } = req.body;
-      const expense = new Expense({ amount, date: new Date(date), note });
+      const { amount, date, note, currency } = req.body;
+      const expense = new Expense({ amount, date: new Date(date), note, currency });
       await expense.save();
       return res.status(201).json(expense);
     } catch (err) {
@@ -56,6 +57,7 @@ app.put('/api/expenses/:id',
   param('id').isMongoId().withMessage('Invalid id'),
   body('amount').optional().isFloat({ gt: 0 }).withMessage('Amount must be positive'),
   body('date').optional().isISO8601().withMessage('Date must be valid ISO date'),
+  body('currency').optional().isString().isLength({ max: 10 }).withMessage('Currency too long'),
   async (req, res) => {
     const v = formatValidation(req);
     if (!v.ok) return res.status(400).json({ error: 'validation', details: v.errors });
