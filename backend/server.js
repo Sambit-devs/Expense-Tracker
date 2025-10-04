@@ -1,16 +1,19 @@
 // backend/server.js
+
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const { body, param, validationResult } = require('express-validator');
 const cors = require('cors');
+const { clerkMiddleware } = require('@clerk/express');
 const Expense = require('./models/Expense');
-require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const MONGODB_URI = process.env.MONGODB_URI || 'your-mongodb-atlas-uri-here';
+console.log('MongoDB URI:', MONGODB_URI);
 const PORT = process.env.PORT || 4000;
 
 mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -25,6 +28,12 @@ const formatValidation = (req) => {
   return { ok: true };
 };
 
+// CRITICAL FIX: Pass both keys explicitly to work around a bug in the SDK.
+app.use('/api/expenses', clerkMiddleware({
+  secretKey: process.env.CLERK_SECRET_KEY,
+  publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+}));
+
 app.post('/api/expenses',
   body('amount').isFloat({ gt: 0 }).withMessage('Amount must be positive'),
   body('date').isISO8601().withMessage('Date must be valid ISO date'),
@@ -36,10 +45,15 @@ app.post('/api/expenses',
     if (!v.ok) return res.status(400).json({ error: 'validation', details: v.errors });
     try {
       const { amount, date, note, currency, category } = req.body;
-      const expense = new Expense({ amount, date: new Date(date), note, currency, category });
+      const userId = req.auth?.userId;
+      if (!userId) {
+          return res.status(401).json({ error: 'Authentication failed: User ID missing' });
+      }
+      const expense = new Expense({ amount, date: new Date(date), note, currency, category, userId });
       await expense.save();
       return res.status(201).json(expense);
     } catch (err) {
+      console.error("Error saving expense:", err);
       return res.status(500).json({ error: 'server_error', message: 'Could not save expense' });
     }
   }
@@ -48,7 +62,11 @@ app.post('/api/expenses',
 app.get('/api/expenses', async (req, res) => {
   try {
     const { category, startDate, endDate } = req.query;
-    const filter = {};
+    const userId = req.auth?.userId;
+    if (!userId) {
+        return res.status(401).json({ error: 'Authentication failed: User ID missing' });
+    }
+    const filter = { userId: userId };
     if (category) filter.category = category;
     if (startDate && endDate) filter.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
     else if (startDate) filter.date = { $gte: new Date(startDate) };
@@ -57,6 +75,7 @@ app.get('/api/expenses', async (req, res) => {
     const docs = await Expense.find(filter).sort({ date: -1 }).limit(100);
     return res.json(docs);
   } catch (err) {
+    console.error("Error in GET /api/expenses:", err);
     return res.status(500).json({ error: 'server_error' });
   }
 });
@@ -72,8 +91,12 @@ app.put('/api/expenses/:id',
     if (!v.ok) return res.status(400).json({ error: 'validation', details: v.errors });
     try {
       const { id } = req.params;
+      const userId = req.auth?.userId;
+      if (!userId) {
+          return res.status(401).json({ error: 'Authentication failed: User ID missing' });
+      }
       const updates = req.body;
-      const updated = await Expense.findByIdAndUpdate(id, updates, { new: true });
+      const updated = await Expense.findOneAndUpdate({ _id: id, userId: userId }, updates, { new: true });
       if (!updated) return res.status(404).json({ error: 'not_found' });
       return res.json(updated);
     } catch (err) {
@@ -89,7 +112,11 @@ app.delete('/api/expenses/:id',
     if (!v.ok) return res.status(400).json({ error: 'validation', details: v.errors });
     try {
       const { id } = req.params;
-      const deleted = await Expense.findByIdAndDelete(id);
+      const userId = req.auth?.userId;
+      if (!userId) {
+          return res.status(401).json({ error: 'Authentication failed: User ID missing' });
+      }
+      const deleted = await Expense.findOneAndDelete({ _id: id, userId: userId });
       if (!deleted) return res.status(404).json({ error: 'not_found' });
       return res.json({ success: true });
     } catch (err) {

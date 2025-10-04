@@ -1,5 +1,6 @@
 // frontend/src/ExpenseTrackerApp.jsx
 import React, { useEffect, useState } from 'react';
+import { useAuth, UserButton } from '@clerk/clerk-react';
 import './App.css';
 
 const API_BASE = 'http://localhost:4000/api';
@@ -50,6 +51,8 @@ const convertToINR = (amount, currency) => {
 };
 
 export default function ExpenseTrackerApp() {
+  const { getToken } = useAuth();
+  
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -69,6 +72,7 @@ export default function ExpenseTrackerApp() {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterCurrency, setFilterCurrency] = useState('');
   const [summary, setSummary] = useState({
     total: 0,
     byCategory: {},
@@ -80,15 +84,30 @@ export default function ExpenseTrackerApp() {
   const loadExpenses = async () => {
     setLoading(true);
     try {
+      const token = await getToken();
       const query = new URLSearchParams();
       if (filterCategory) query.append('category', filterCategory);
       if (filterStartDate) query.append('startDate', filterStartDate);
       if (filterEndDate) query.append('endDate', filterEndDate);
 
-      const res = await fetch(`${API_BASE}/expenses?${query.toString()}`);
+      const res = await fetch(`${API_BASE}/expenses?${query.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!res.ok) {
+        console.error(`Failed to fetch expenses: HTTP Status ${res.status}`);
+        setError(`Failed to load expenses. Server responded with status ${res.status}.`);
+        return;
+      }
+      
       const data = await res.json();
-      setExpenses(data);
-    } catch (err) { setError('Failed to load'); }
+      const filteredByCurrency = filterCurrency ? data.filter(exp => exp.currency === filterCurrency) : data;
+      setExpenses(filteredByCurrency);
+      setError('');
+    } catch (err) { 
+      console.error('Network or parsing error during loadExpenses:', err);
+      setError('Network error: Could not connect to backend.'); 
+    }
     setLoading(false);
   };
 
@@ -127,24 +146,41 @@ export default function ExpenseTrackerApp() {
     return [...months].sort((a, b) => new Date(a) - new Date(b));
   };
 
-  useEffect(() => { loadExpenses(); }, [filterCategory, filterStartDate, filterEndDate]);
+  useEffect(() => {
+    if (getToken) {
+      loadExpenses();
+    }
+  }, [getToken, filterCategory, filterStartDate, filterEndDate, filterCurrency]);
+
   useEffect(() => { calculateSummary(); }, [expenses, summaryMonth]);
 
   const handleAdd = async () => {
     const categoryToSave = newCategory === 'Other' ? customNewCategory : newCategory;
     if (!amount || !date || !categoryToSave) return alert('Fill in all required fields');
 
-    await fetch(`${API_BASE}/expenses`, {
+    const token = await getToken();
+    const res = await fetch(`${API_BASE}/expenses`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ amount, date, note, currency: newCurrency, category: categoryToSave })
     });
+    
+    if (!res.ok) {
+        console.error(`Failed to add expense: HTTP Status ${res.status}`);
+        setError('Failed to add expense. Check inputs/backend logs.');
+        return;
+    }
+
     setAmount(''); setDate(''); setNote(''); setNewCategory('Other'); setCustomNewCategory('');
     loadExpenses();
   };
 
   const handleDelete = async (id) => {
-    await fetch(`${API_BASE}/expenses/${id}`, { method: 'DELETE' });
+    const token = await getToken();
+    await fetch(`${API_BASE}/expenses/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
     loadExpenses();
   };
 
@@ -152,13 +188,27 @@ export default function ExpenseTrackerApp() {
     const categoryToSave = editCategory === 'Other' ? customEditCategory : editCategory;
     if (!editAmount || !editDate || !categoryToSave) return alert('Fill in all required fields');
 
+    const token = await getToken();
     await fetch(`${API_BASE}/expenses/${editingId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ amount: editAmount, date: editDate, note: editNote, currency: editCurrency, category: categoryToSave })
     });
     setEditingId(null); setEditAmount(''); setEditDate(''); setEditNote(''); setEditCurrency('₹'); setEditCategory('Other'); setCustomEditCategory('');
     loadExpenses();
+  };
+
+  const handleExport = () => {
+    const csvContent = "data:text/csv;charset=utf-8," +
+      "Date,Amount,Currency,Category,Note\n" +
+      expenses.map(e => `${new Date(e.date).toLocaleDateString()},${e.amount},${e.currency},"${e.category}","${e.note}"`).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "expenses.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const startEdit = (expense) => {
@@ -183,8 +233,11 @@ export default function ExpenseTrackerApp() {
 
   return (
     <div className="container">
+      <div className="header-actions">
+        <UserButton />
+      </div>
       <h1>Expense Tracker</h1>
-      {error && <p>{error}</p>}
+      {error && <p className="error-message">{error}</p>}
 
       {/* Add Expense Form */}
       <div className="expense-form">
@@ -220,6 +273,11 @@ export default function ExpenseTrackerApp() {
         <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
         <span>Before</span>
         <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
+        <select value={filterCurrency} onChange={e => setFilterCurrency(e.target.value)}>
+          <option value="">All Currencies</option>
+          {currencies.map(c => (<option key={c.code} value={c.symbol}>{c.symbol} ({c.code})</option>))}
+        </select>
+        <button onClick={handleExport}>Export to CSV</button>
       </div>
 
       {/* Summary Reports Button */}
