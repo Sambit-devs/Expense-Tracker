@@ -73,6 +73,8 @@ export default function ExpenseTrackerApp() {
     byCategory: {},
     byMonth: {}
   });
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryMonth, setSummaryMonth] = useState('');
 
   const loadExpenses = async () => {
     setLoading(true);
@@ -94,15 +96,17 @@ export default function ExpenseTrackerApp() {
     const byCategory = {};
     const byMonth = {};
 
-    expenses.forEach(exp => {
+    const filteredExpenses = summaryMonth
+      ? expenses.filter(exp => new Date(exp.date).toLocaleDateString('default', { month: 'long', year: 'numeric' }) === summaryMonth)
+      : expenses;
+
+    filteredExpenses.forEach(exp => {
       const amountInINR = convertToINR(exp.amount, exp.currency);
       total += amountInINR;
 
-      // Group by category
       const category = exp.category || 'Other';
       byCategory[category] = (byCategory[category] || 0) + amountInINR;
 
-      // Group by month
       const month = new Date(exp.date).toLocaleDateString('default', { month: 'long', year: 'numeric' });
       byMonth[month] = (byMonth[month] || 0) + amountInINR;
     });
@@ -114,8 +118,16 @@ export default function ExpenseTrackerApp() {
     });
   };
 
+  const getExpenseMonths = () => {
+    const months = new Set();
+    expenses.forEach(exp => {
+      months.add(new Date(exp.date).toLocaleDateString('default', { month: 'long', year: 'numeric' }));
+    });
+    return [...months].sort((a, b) => new Date(a) - new Date(b));
+  };
+
   useEffect(() => { loadExpenses(); }, [filterCategory, filterStartDate, filterEndDate]);
-  useEffect(() => { calculateSummary(); }, [expenses]);
+  useEffect(() => { calculateSummary(); }, [expenses, summaryMonth]);
 
   const handleAdd = async () => {
     const categoryToSave = newCategory === 'Other' ? customNewCategory : newCategory;
@@ -210,33 +222,56 @@ export default function ExpenseTrackerApp() {
         <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
       </div>
 
-      {/* Summary Reports */}
-      <div style={{ padding: '20px', border: '1px solid #eee', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#f9f9f9' }}>
-        <h2>Summary Reports</h2>
-        <div>
-          <strong>Total Spent:</strong> ₹{summary.total.toFixed(2)}
-        </div>
-        <div style={{ marginTop: '15px' }}>
-          <strong>Total by Category:</strong>
-          <ul style={{ listStyleType: 'none', padding: 0 }}>
-            {Object.entries(summary.byCategory).map(([cat, total]) => (
-              <li key={cat}>
-                {cat}: ₹{total.toFixed(2)}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div style={{ marginTop: '15px' }}>
-          <strong>Total by Month:</strong>
-          <ul style={{ listStyleType: 'none', padding: 0 }}>
-            {Object.entries(summary.byMonth).map(([month, total]) => (
-              <li key={month}>
-                {month}: ₹{total.toFixed(2)}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* Summary Reports Button */}
+      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <button onClick={() => setShowSummary(!showSummary)}>
+          {showSummary ? 'Hide Summary' : 'Show Summary'}
+        </button>
       </div>
+
+      {/* Summary Reports Section (Conditionally Rendered) */}
+      {showSummary && (
+        <div style={{ padding: '20px', border: '1px solid #eee', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#f9f9f9' }}>
+          <h2>Summary Reports</h2>
+          <div style={{ marginBottom: '15px' }}>
+            <label htmlFor="summary-month-filter">Select Month:</label>
+            <select
+              id="summary-month-filter"
+              value={summaryMonth}
+              onChange={e => setSummaryMonth(e.target.value)}
+              style={{ marginLeft: '10px' }}
+            >
+              <option value="">All Months</option>
+              {getExpenseMonths().map(month => (
+                <option key={month} value={month}>{month}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <strong>Total Spent:</strong> ₹{summary.total.toFixed(2)}
+          </div>
+          <div style={{ marginTop: '15px' }}>
+            <strong>Total by Category:</strong>
+            <ul style={{ listStyleType: 'none', padding: 0 }}>
+              {Object.entries(summary.byCategory).map(([cat, total]) => (
+                <li key={cat}>
+                  {cat}: ₹{total.toFixed(2)}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div style={{ marginTop: '15px' }}>
+            <strong>Total by Month:</strong>
+            <ul style={{ listStyleType: 'none', padding: 0 }}>
+              {Object.entries(summary.byMonth).map(([month, total]) => (
+                <li key={month}>
+                  {month}: ₹{total.toFixed(2)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {loading ? <p>Loading...</p> :
         <ul className="expense-list">
