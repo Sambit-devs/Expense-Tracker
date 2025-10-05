@@ -1,30 +1,49 @@
 # Expense Tracker
 
-This repository contains a combined frontend (Vite + React) and backend (Express + MongoDB) app.
+This repository contains a frontend (Vite + React) in `frontend/` and a backend (Express + MongoDB) in `backend/`.
 
-Quick setup:
+Goal: make it trivial for someone who downloads the repo as a ZIP to run the app locally with minimal setup.
 
-1. Install both frontend and backend dependencies:
+Prerequisites
+- Node.js (recommended LTS: 18 or 20). Verify with `node -v` and `npm -v`.
+- A MongoDB connection string (Atlas or local MongoDB). If you want to run without signing in, see the Troubleshooting section.
+
+Quick start (recommended)
+
+1. Unzip the repository and open a terminal in the project root.
+
+2. Install both backend and frontend dependencies from the project root:
 
 ```bash
 npm run install-all
 ```
 
-2. Create a `.env` file in `backend/` with the following variables:
-
-```
-MONGODB_URI=your-mongodb-uri
-CLERK_SECRET_KEY=your-clerk-secret
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your-clerk-publishable
-PORT=4000
-```
-
-3. Start both frontend and backend in development with a single command from the project root:
+From the project root run:
 
 ```bash
 npm run dev
 ```
 
-This runs the backend on port 4000 and the frontend on port 5173. During development the Vite server proxies any request starting with `/api` to the backend, so the frontend can call `/api/expenses` without changing the code.
+What this does:
+- Installs: runs the `dev` script in `backend/` (starts `nodemon server.js`) and `frontend/` (`vite` dev server).
+- Backend default port: 4000 (unless `PORT` in `backend/.env` overrides it).
+- Frontend default port: 5173 (Vite).
 
-If you deploy to production, build the frontend (`npm --prefix frontend run build`) and serve the `frontend/dist` files from the backend (optional)."
+Opening the app
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:4000/api/expenses
+
+Production / build
+
+To build the frontend and serve static files from the frontend build (optional):
+
+```bash
+npm --prefix frontend run build
+# then serve the files in frontend/dist using a static server or copy them into backend's static folder.
+```
+
+Useful npm scripts (added to root `package.json`)
+- `npm run install-all` — install dependencies in both `backend/` and `frontend/`.
+- `npm run dev` — start backend and frontend dev servers in parallel (recommended during development).
+- `npm run start-backend` — start the backend only.
+- `npm run start-frontend` — preview the built frontend.

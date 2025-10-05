@@ -1,0 +1,11 @@
+{
+  "name": "expense-tracker-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "install-all": "npm --prefix backend install && npm --prefix frontend install",
+    "dev": "npm --prefix backend run dev & npm --prefix frontend run dev",
+    "start-backend": "npm --prefix backend run start",
+    "start-frontend": "npm --prefix frontend run preview"
+  }
+}
