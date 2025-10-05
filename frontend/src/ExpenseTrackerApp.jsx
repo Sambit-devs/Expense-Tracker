@@ -56,32 +56,30 @@ export default function ExpenseTrackerApp() {
   const [showSummary, setShowSummary] = useState(false);
   const [summaryMonth, setSummaryMonth] = useState('');
   
-  // New State for Pagination
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ totalPages: 1 });
-
-  // New State for Exchange Rates
   const [exchangeRates, setExchangeRates] = useState({});
 
-  // New useEffect to fetch exchange rates
   useEffect(() => {
     const fetchExchangeRates = async () => {
       try {
-        const res = await fetch('https://api.exchangerate-api.com/v4/latest/INR');
+        const res = await fetch('https://api.exchangerate-api.com/v4/latest/INR'); 
         if (!res.ok) throw new Error('Failed to fetch exchange rates');
         const data = await res.json();
-        const invertedRates = { INR: 1 };
+        
+        const invertedRates = {};
         for (const code in data.rates) {
-          invertedRates[code] = data.rates[code];
+          invertedRates[code] = 1 / data.rates[code]; 
         }
+        invertedRates['INR'] = 1; 
+        
         setExchangeRates(invertedRates);
       } catch (err) {
         console.error("Error fetching exchange rates:", err);
-        // Fallback to hardcoded rates if API call fails
         setExchangeRates({
-          '₹': 1, '$': 83.1, '€': 88.5, '£': 102.5, '¥': 0.56, 'A$': 53.6,
-          'C$': 60.1, 'CHF': 91.5, 'HK$': 10.6, 'NZ$': 49.3, 'S$': 61.2,
-          'kr': 7.6, 'R': 4.4, 'R$': 16.9, '₽': 0.9
+          'INR': 1, 'USD': 88.7, 'EUR': 94.2, 'GBP': 108.4, 'JPY': 0.6,
+          'AUD': 56.4, 'CAD': 61.1, 'CHF': 95.8, 'HKD': 11.4, 'NZD': 52.9,
+          'SGD': 64.9, 'SEK': 8.1, 'ZAR': 4.7, 'BRL': 17.5, 'RUB': 0.95
         });
         setError('Could not fetch latest exchange rates. Using a fallback.');
       }
@@ -91,7 +89,7 @@ export default function ExpenseTrackerApp() {
 
   const convertToINR = (amount, currencySymbol) => {
     const currencyCode = currencies.find(c => c.symbol === currencySymbol)?.code;
-    const rate = exchangeRates[currencyCode] || 1;
+    const rate = exchangeRates[currencyCode] || 1; 
     return amount * rate;
   };
 
@@ -104,9 +102,8 @@ export default function ExpenseTrackerApp() {
       if (filterStartDate) query.append('startDate', filterStartDate);
       if (filterEndDate) query.append('endDate', filterEndDate);
       
-      // Add pagination parameters
       query.append('page', page);
-      query.append('limit', 15); // You can change this value
+      query.append('limit', 15); 
 
       const res = await fetch(`${API_BASE}/expenses?${query.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -258,7 +255,6 @@ export default function ExpenseTrackerApp() {
       <h1>Expense Tracker</h1>
       {error && <p className="error-message">{error}</p>}
 
-      {/* Add Expense Form */}
       <div className="expense-form">
         <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" type="number" />
         <select value={newCurrency} onChange={e => setNewCurrency(e.target.value)}>
@@ -282,7 +278,6 @@ export default function ExpenseTrackerApp() {
         <button onClick={handleAdd}>Add</button>
       </div>
 
-      {/* Filters */}
       <div className="filters-container">
         <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
           <option value="">All Categories</option>
@@ -299,14 +294,12 @@ export default function ExpenseTrackerApp() {
         <button onClick={handleExport}>Export to CSV</button>
       </div>
 
-      {/* Summary Reports Button */}
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
         <button onClick={() => setShowSummary(!showSummary)}>
           {showSummary ? 'Hide Summary' : 'Show Summary'}
         </button>
       </div>
 
-      {/* Summary Reports Section (Conditionally Rendered) */}
       {showSummary && (
         <div className="summary-reports">
           <h2>Summary Reports</h2>
@@ -405,7 +398,6 @@ export default function ExpenseTrackerApp() {
               </div>
             ))}
           </div>
-          {/* New Pagination Controls */}
           <div className="pagination-controls">
             <button
               onClick={() => setPage(prev => Math.max(prev - 1, 1))}
@@ -425,4 +417,4 @@ export default function ExpenseTrackerApp() {
       }
     </div>
   );
-}
+} 
