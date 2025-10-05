@@ -1,0 +1,71 @@
+commit 4629d92ee1b83be634a54e0e2c61c208ba9fc791
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sun Oct 5 14:24:28 2025 +0530
+
+    Added Documentation
+
+commit 0ad178aa275c87a73fb2ccb4989ab3910f419898
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sun Oct 5 14:22:42 2025 +0530
+
+    Added Readme
+
+commit b4d5a2da60adf274c6a51e30cbce6c469b768ab0
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sun Oct 5 14:14:19 2025 +0530
+
+    Added README
+
+commit 0fc6eced9d31d8c95c0d226b4f33e13591675e71
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sun Oct 5 14:08:35 2025 +0530
+
+    Patches & fixes
+
+commit f717f0b61af5ac1af25ab0d299b06547ddc76fbc
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sun Oct 5 09:07:10 2025 +0530
+
+    Added pagination & Echange Rates
+
+commit df23064fa0aa6e19ef9ddb255498b09dbc525ccc
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sat Oct 4 23:06:29 2025 +0530
+
+    SIGN UP Implemented
+
+commit 0bcc3247b58425f19daebca1c073d8e3bd595260
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sat Oct 4 18:47:51 2025 +0530
+
+    Base Tracker Completed
+
+commit b66ac6e35381272f630b4235c09fcae1e9e60153
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sat Oct 4 18:22:51 2025 +0530
+
+    Basic Functionality Completed
+
+commit 0ceafa2bb4ed05cb8481ac45dfb89cb7d6755fd2
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sat Oct 4 17:54:54 2025 +0530
+
+    CRUD + edge cases implemented
+
+commit 21da6a9918fb6517c32fd1d526d3c19ef5565adf
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sat Oct 4 17:40:26 2025 +0530
+
+    DB is integrated and api calls working
+
+commit 2025b67cf31847a4cef140b348f066cde86cb4d7
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sat Oct 4 17:10:40 2025 +0530
+
+    API setup implemented
+
+commit c5d1277f8707b50321e47cf02a4cbd222e596f60
+Author: Sam <devs.sambit@gmail.com>
+Date:   Sat Oct 4 09:34:58 2025 +0530
+
+    Setup Completed
