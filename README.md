@@ -1,5 +1,7 @@
 # Expense Tracker
 
+NOTE: The .env file is already provided for added convenience, please infer from sharing it.
+
 This repository contains a frontend (Vite + React) in `frontend/` and a backend (Express + MongoDB) in `backend/`.
 
 Goal: make it trivial for someone who downloads the repo as a ZIP to run the app locally with minimal setup.
