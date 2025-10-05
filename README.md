@@ -47,3 +47,20 @@ Useful npm scripts (added to root `package.json`)
 - `npm run dev` — start backend and frontend dev servers in parallel (recommended during development).
 - `npm run start-backend` — start the backend only.
 - `npm run start-frontend` — preview the built frontend.
+
+
+
+
+
+## ADDED FEATURES
+
+Add expense (amount, date, note)
+View expenses
+Update expense
+Delete expense
+Save data (file or database)
+Basic validation & error handling
+Add categories (e.g., food, travel, bills)
+Show summary reports (total spent, group by category, group by month)
+Add filters (by date or category)
+Simple UI 
