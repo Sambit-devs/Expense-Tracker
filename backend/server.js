@@ -1,5 +1,3 @@
-// backend/server.js
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -64,16 +62,36 @@ app.get('/api/expenses', async (req, res) => {
     const { category, startDate, endDate } = req.query;
     const userId = req.auth?.userId;
     if (!userId) {
-        return res.status(401).json({ error: 'Authentication failed: User ID missing' });
+      return res.status(401).json({ error: 'Authentication failed: User ID missing' });
     }
+
+    // New pagination parameters with default values
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20; // Default to 20 items per page
+    const skip = (page - 1) * limit;
+
     const filter = { userId: userId };
     if (category) filter.category = category;
     if (startDate && endDate) filter.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
     else if (startDate) filter.date = { $gte: new Date(startDate) };
     else if (endDate) filter.date = { $lte: new Date(endDate) };
 
-    const docs = await Expense.find(filter).sort({ date: -1 }).limit(100);
-    return res.json(docs);
+    const totalCount = await Expense.countDocuments(filter);
+    
+    const docs = await Expense.find(filter)
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    return res.json({
+      data: docs,
+      meta: {
+        totalItems: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        limit: limit
+      }
+    });
   } catch (err) {
     console.error("Error in GET /api/expenses:", err);
     return res.status(500).json({ error: 'server_error' });

@@ -1,4 +1,3 @@
-// frontend/src/ExpenseTrackerApp.jsx
 import React, { useEffect, useState } from 'react';
 import { useAuth, UserButton } from '@clerk/clerk-react';
 import './App.css';
@@ -25,30 +24,6 @@ const currencies = [
 ];
 
 const categories = ['Food', 'Travel', 'Bills', 'Shopping', 'Entertainment', 'Other'];
-
-// Hardcoded exchange rates for summary calculation
-const EXCHANGE_RATES = {
-  '₹': 1,
-  '$': 83.1,
-  '€': 88.5,
-  '£': 102.5,
-  '¥': 0.56,
-  'A$': 53.6,
-  'C$': 60.1,
-  'CHF': 91.5,
-  'HK$': 10.6,
-  'NZ$': 49.3,
-  'S$': 61.2,
-  'kr': 7.6,
-  'R': 4.4,
-  'R$': 16.9,
-  '₽': 0.9
-};
-
-const convertToINR = (amount, currency) => {
-  const rate = EXCHANGE_RATES[currency] || 1;
-  return amount * rate;
-};
 
 export default function ExpenseTrackerApp() {
   const { getToken } = useAuth();
@@ -80,6 +55,45 @@ export default function ExpenseTrackerApp() {
   });
   const [showSummary, setShowSummary] = useState(false);
   const [summaryMonth, setSummaryMonth] = useState('');
+  
+  // New State for Pagination
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ totalPages: 1 });
+
+  // New State for Exchange Rates
+  const [exchangeRates, setExchangeRates] = useState({});
+
+  // New useEffect to fetch exchange rates
+  useEffect(() => {
+    const fetchExchangeRates = async () => {
+      try {
+        const res = await fetch('https://api.exchangerate-api.com/v4/latest/INR');
+        if (!res.ok) throw new Error('Failed to fetch exchange rates');
+        const data = await res.json();
+        const invertedRates = { INR: 1 };
+        for (const code in data.rates) {
+          invertedRates[code] = data.rates[code];
+        }
+        setExchangeRates(invertedRates);
+      } catch (err) {
+        console.error("Error fetching exchange rates:", err);
+        // Fallback to hardcoded rates if API call fails
+        setExchangeRates({
+          '₹': 1, '$': 83.1, '€': 88.5, '£': 102.5, '¥': 0.56, 'A$': 53.6,
+          'C$': 60.1, 'CHF': 91.5, 'HK$': 10.6, 'NZ$': 49.3, 'S$': 61.2,
+          'kr': 7.6, 'R': 4.4, 'R$': 16.9, '₽': 0.9
+        });
+        setError('Could not fetch latest exchange rates. Using a fallback.');
+      }
+    };
+    fetchExchangeRates();
+  }, []);
+
+  const convertToINR = (amount, currencySymbol) => {
+    const currencyCode = currencies.find(c => c.symbol === currencySymbol)?.code;
+    const rate = exchangeRates[currencyCode] || 1;
+    return amount * rate;
+  };
 
   const loadExpenses = async () => {
     setLoading(true);
@@ -89,6 +103,10 @@ export default function ExpenseTrackerApp() {
       if (filterCategory) query.append('category', filterCategory);
       if (filterStartDate) query.append('startDate', filterStartDate);
       if (filterEndDate) query.append('endDate', filterEndDate);
+      
+      // Add pagination parameters
+      query.append('page', page);
+      query.append('limit', 15); // You can change this value
 
       const res = await fetch(`${API_BASE}/expenses?${query.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -100,9 +118,10 @@ export default function ExpenseTrackerApp() {
         return;
       }
       
-      const data = await res.json();
+      const { data, meta } = await res.json();
       const filteredByCurrency = filterCurrency ? data.filter(exp => exp.currency === filterCurrency) : data;
       setExpenses(filteredByCurrency);
+      setMeta(meta);
       setError('');
     } catch (err) { 
       console.error('Network or parsing error during loadExpenses:', err);
@@ -150,7 +169,7 @@ export default function ExpenseTrackerApp() {
     if (getToken) {
       loadExpenses();
     }
-  }, [getToken, filterCategory, filterStartDate, filterEndDate, filterCurrency]);
+  }, [getToken, filterCategory, filterStartDate, filterEndDate, filterCurrency, page]);
 
   useEffect(() => { calculateSummary(); }, [expenses, summaryMonth]);
 
@@ -332,59 +351,77 @@ export default function ExpenseTrackerApp() {
       )}
 
       {loading ? <p>Loading...</p> :
-        <div className="expense-table">
-          <div className="expense-header">
-            <div>Date</div>
-            <div>Amount</div>
-            <div>Category</div>
-            <div>Note</div>
-            <div>Actions</div>
-          </div>
-          {expenses.map(e => (
-            <div className="expense-row" key={e._id}>
-              {editingId === e._id ? (
-                <div className="edit-panel">
-                  <div className="edit-panel-inputs">
-                    <input value={editAmount} onChange={ev => setEditAmount(ev.target.value)} placeholder="Amount" type="number" />
-                    <select value={editCurrency} onChange={ev => setEditCurrency(ev.target.value)}>
-                      {currencies.map(c => (<option key={c.code} value={c.symbol}>{c.symbol} ({c.code})</option>))}
-                    </select>
-                    <select value={editCategory} onChange={ev => {
-                        setEditCategory(ev.target.value);
-                        if (ev.target.value !== 'Other') setCustomEditCategory('');
-                      }}>
-                      {categories.map(c => (<option key={c} value={c}>{c}</option>))}
-                    </select>
-                    {editCategory === 'Other' && (
-                      <input
-                        value={customEditCategory}
-                        onChange={ev => setCustomEditCategory(ev.target.value)}
-                        placeholder="Custom Category"
-                      />
-                    )}
-                    <input value={editDate} onChange={ev => setEditDate(ev.target.value)} type="date" />
-                    <input value={editNote} onChange={ev => setEditNote(ev.target.value)} placeholder="Note" />
-                  </div>
-                  <div className="edit-panel-actions">
-                    <button className="btn-save" onClick={handleUpdate}>Save</button>
-                    <button className="btn-cancel" onClick={cancelEdit}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="expense-cell">{new Date(e.date).toLocaleDateString()}</div>
-                  <div className="expense-cell">{e.currency}{e.amount}</div>
-                  <div className="expense-cell">{e.category}</div>
-                  <div className="expense-cell">{e.note}</div>
-                  <div className="expense-cell">
-                    <button className="btn-edit" onClick={() => startEdit(e)}>Edit</button>
-                    <button className="btn-delete" onClick={() => handleDelete(e._id)}>Delete</button>
-                  </div>
-                </>
-              )}
+        <>
+          <div className="expense-table">
+            <div className="expense-header">
+              <div>Date</div>
+              <div>Amount</div>
+              <div>Category</div>
+              <div>Note</div>
+              <div>Actions</div>
             </div>
-          ))}
-        </div>
+            {expenses.map(e => (
+              <div className="expense-row" key={e._id}>
+                {editingId === e._id ? (
+                  <div className="edit-panel">
+                    <div className="edit-panel-inputs">
+                      <input value={editAmount} onChange={ev => setEditAmount(ev.target.value)} placeholder="Amount" type="number" />
+                      <select value={editCurrency} onChange={ev => setEditCurrency(ev.target.value)}>
+                        {currencies.map(c => (<option key={c.code} value={c.symbol}>{c.symbol} ({c.code})</option>))}
+                      </select>
+                      <select value={editCategory} onChange={ev => {
+                          setEditCategory(ev.target.value);
+                          if (ev.target.value !== 'Other') setCustomEditCategory('');
+                        }}>
+                        {categories.map(c => (<option key={c} value={c}>{c}</option>))}
+                      </select>
+                      {editCategory === 'Other' && (
+                        <input
+                          value={customEditCategory}
+                          onChange={ev => setCustomEditCategory(ev.target.value)}
+                          placeholder="Custom Category"
+                        />
+                      )}
+                      <input value={editDate} onChange={ev => setEditDate(ev.target.value)} type="date" />
+                      <input value={editNote} onChange={ev => setEditNote(ev.target.value)} placeholder="Note" />
+                    </div>
+                    <div className="edit-panel-actions">
+                      <button className="btn-save" onClick={handleUpdate}>Save</button>
+                      <button className="btn-cancel" onClick={cancelEdit}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="expense-cell">{new Date(e.date).toLocaleDateString()}</div>
+                    <div className="expense-cell">{e.currency}{e.amount}</div>
+                    <div className="expense-cell">{e.category}</div>
+                    <div className="expense-cell">{e.note}</div>
+                    <div className="expense-cell">
+                      <button className="btn-edit" onClick={() => startEdit(e)}>Edit</button>
+                      <button className="btn-delete" onClick={() => handleDelete(e._id)}>Delete</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* New Pagination Controls */}
+          <div className="pagination-controls">
+            <button
+              onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+              disabled={page === 1}
+            >
+              Previous
+            </button>
+            <span>Page {page} of {meta.totalPages}</span>
+            <button
+              onClick={() => setPage(prev => Math.min(prev + 1, meta.totalPages))}
+              disabled={page === meta.totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </>
       }
     </div>
   );
