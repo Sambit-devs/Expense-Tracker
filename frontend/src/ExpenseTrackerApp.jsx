@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useAuth, UserButton } from '@clerk/clerk-react';
 import './App.css';
 
-const API_BASE = 'http://localhost:4000/api';
+// const API_BASE = 'http://localhost:4000/api';
+const API_BASE = import.meta.env.VITE_VERCEL_URL ? `https://${import.meta.env.VITE_VERCEL_URL}/api` : 'http://localhost:4000/api';
+
 
 const currencies = [
   { symbol: '₹', code: 'INR', name: 'Indian Rupee' },
