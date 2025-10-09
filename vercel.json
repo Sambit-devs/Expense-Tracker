@@ -6,8 +6,9 @@
       "use": "@vercel/node"
     },
     {
-      "src": "./frontend/dist/**",
-      "use": "@vercel/static"
+      "src": "./frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
     }
   ],
   "routes": [
@@ -20,11 +21,7 @@
       "dest": "/frontend/dist/assets/$1"
     },
     {
-      "src": "/favicon.ico",
-      "dest": "/frontend/dist/favicon.ico"
-    },
-    {
-      "src": "/.*",
+      "src": "/(.*)",
       "dest": "/frontend/dist/index.html"
     }
   ]
