@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173
   },
   build: {
-    outDir: 'dist'  // Ensure this matches the vercel.json config
-  },
-  base: '/' // Important: ensures correct asset URLs in production
+    outDir: 'dist',
+    base: '/'
+  }
 })
