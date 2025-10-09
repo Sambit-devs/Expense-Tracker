@@ -1,22 +1,36 @@
 {
+  "version": 2,
   "builds": [
     {
       "src": "./backend/server.js",
       "use": "@vercel/node"
-    },
+    }
+  ],
+  "rewrites": [
     {
-      "src": "./frontend/dist/index.html",
-      "use": "@vercel/static"
+      "source": "/api/(.*)",
+      "destination": "/backend/server.js"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/backend/server.js"
+      "src": "/_next/static/(.*)",
+      "headers": { "cache-control": "public,max-age=31536000,immutable" },
+      "continue": true
+    },
+    {
+      "src": "/manifest.json",
+      "headers": { "cache-control": "public,max-age=31536000,immutable" },
+      "continue": true
     },
     {
       "src": "/assets/(.*)",
+      "headers": { "cache-control": "public,max-age=31536000,immutable" },
       "dest": "/frontend/dist/assets/$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/frontend/dist/favicon.ico"
     },
     {
       "src": "/(.*)",
